@@ -15,12 +15,12 @@ START:
     mov al, 1
     mov bh, 0
     mov bl, 0x07    ; 黑底白字
-    mov cx, boot_message_len - offset boot_message  ; 9 个字符
+    mov cx, 0x09	; 9 个字符
     mov dl, 0x00
     mov dh, 0x00
     push cs
     pop es
-    mov bp, offset boot_message
+    mov bp, boot_message
     mov ah, 0x13
     int 0x10
     jmp $
@@ -28,5 +28,5 @@ START:
 boot_message:   dd "Booting......", 0
 boot_message_len:
 
-times 510 - ($ - $$) db, 0
+times 510 - ($ - $$) db 0
 dw 0xaa55
