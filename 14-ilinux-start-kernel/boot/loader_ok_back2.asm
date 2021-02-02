@@ -1,8 +1,8 @@
-org	0100h
-	jmp LABEL_START
+org     0100h
+        jmp LABEL_START
 
 ; 导入头文件
-%include "loader.inc"			; 挂载点相关的常量
+%include "loader.inc"            ; 挂载点相关的常量
 %include "fat12hdr.inc"			; 导入FAT12相关的常量
 %include "pm.inc"				; 导入宏gdt
 
@@ -53,7 +53,7 @@ LABEL_START:
 	mov ebx, 0		; 得到后续的内存信息的值，第一次必须为0
 	mov di, _MEM_CHK_BUF; es:di 指向准备写入ADRS的缓冲区地址
 LABEL_MEM_CHK_LOOP:
-	mov eax, 0x0000E820	; eax=0x0000E820
+	mov eax, 0xE820		; eax=0x0000E820
 	mov ecx, 20			; ecx=ADRS的大小
 	mov edx, 0x534D4150 ; 约定签名 "SMAP"
 	int 0x15			; 得到ADRS
@@ -62,13 +62,13 @@ LABEL_MEM_CHK_LOOP:
 						; 产生了一个进位标志，CF=1，检查得到ADRS错误
 	; CF=0
 	add di, 20			; di += 20，es:di指向缓冲区准备放入的下一个ADRS的地址
-	inc dword [_DD_MCR_COUNT]	
+	inc dword [DD_MCR_COUNT]	
 						;ADRS的数量++
 
 	cmp ebx, 0
-	je LABEL_MEM_CHK_FINISH					; ebx=0 表示拿到最后一个ADRS，完成检查并跳出循环
+	jne LABEL_MEM_CHK_LOOP 					; ebx=0 表示拿到最后一个ADRS，完成检查并跳出循环
 	; ebx!=0，表示还没有拿到最后一个，继续循环
-	jmp LABEL_MEM_CHK_LOOP
+	jmp LABEL_MEM_CHK_FINISH 
 
 LABEL_MEM_CHK_ERROR:
 	mov dword [_DD_MCR_COUNT], 0			; 检查失败，ADRS数量为0
@@ -204,8 +204,6 @@ LABEL_FILE_LOADED:
 
 	jmp $
 
-
-
 DISP_STR:
 	mov ax, MESSAGE_LENGTH
 	mul dh
@@ -219,6 +217,9 @@ DISP_STR:
 	mov dl, 0
 	int 10h
 	ret
+
+
+
 
 ;----------------------------------------------------------------------------
 ; ������: ReadSector
@@ -345,9 +346,20 @@ LABEL_PM_32_START:
 	mov al, 'M'
 	mov word [gs:edi], ax
 
-	call FUN_CAL_MM_SIZE			; 计算内存大小
+	push DD_MCR_COUNT
+	call FUN_PRINT_INT
+	call FUN_PRINT_NL
+    add esp, 4 
 
-	call FUN_PRINT_MM_SIZE			; 打印内存大小
+	call FUN_PRINT_MM_SIZE
+
+	call FUN_CAL_MM_SIZE
+
+	call FUN_PRINT_MM_SIZE
+
+	push STR_TEST
+	call FUN_PRINT
+	add esp, 4 
 
 	jmp $
 
@@ -360,6 +372,14 @@ FUN_CAL_MM_SIZE:
 	push ecx
 	push edx
 
+	call FUN_PRINT_NL
+	push dword [DD_MCR_COUNT]
+	call FUN_PRINT_INT
+	add esp, 4 
+	call FUN_PRINT_NL
+
+	xchg bx, bx
+
 	mov esi, MEM_CHK_BUF				; ds:esi 指向缓冲区
 	mov ecx, [DD_MCR_COUNT]				; ecx=有多少个ADRS，记为i
 .loop:									
@@ -368,25 +388,70 @@ FUN_CAL_MM_SIZE:
 .1:										
 	push dword [esi]					; 
 	pop eax								; ds:eax -> 缓冲区中的第一个ARDS结构
-	stosd								; 将ds:eax中的一个dword内容拷贝到ds:edi，填充ADRS结构，并edit+4 
+	stosd								; 将eax的内拷贝到ds:edi，填充ADRS结构，并edit+4 
 	add esi, 4							; ds:esi -> 指向ADRS中的下一个变量
 	dec edx								; j--
 	
 	cmp edx, 0							; 									
 	jnz .1								; 如果数据没有填充完毕，将继续填充
+
+
+; 	mov edx, 4 * 5
+;	push edx
+;
+;	mov edx, MEM_CHK_BUF
+;	push edx
+;
+;	mov edx, ADRS
+;	push edx 
+;	call MEM_COPY
+;
+;	add esp, 4 * 2 + 2 
 	
-	cmp dword [DD_TYPE], 1				; 
-	jne .2								; 
+	; -----------------------------------------------------------------------
+	; 这里可以考虑将ARDS结构打印出来
+	; -----------------------------------------------------------------------
+	push dword [DD_BASE_ADDR_LOW]
+	call FUN_PRINT_INT
+	add esp, 4
+	
+	push dword [DD_SIZE_LOW]
+	call FUN_PRINT_INT
+	add esp, 4
+
+	push dword [DD_TYPE]
+	call FUN_PRINT_INT
+	add esp, 4 
+
+	; -----------------------------------------------------------------------
+	; 这里可以考虑将ARDS结构打印出来
+	; -----------------------------------------------------------------------
+
+
+	call FUN_PRINT_NL
+	push dword [DD_TYPE]
+	call FUN_PRINT_INT
+	add esp, 4
+	; call FUN_PRINT_NL
+
+	cmp dword [DD_TYPE], 2				; 
+	je .2								; 
 
 	mov eax, [DD_BASE_ADDR_LOW]			; eax 为基地址低32位
 	add eax, [DD_SIZE_LOW]				; eax = 基地址低32位 + 长度低32位 --> 这个ARDS结构指代的内存的大小
 										; 为什么不算高32位，因为32位可以表示0~4G大小的内存，而32位CPU也只能到4G
 										; 我们编写的是32位操作系统，高32位系统是为64位操作系统准备的，我们不需要
 
+	; call FUN_PRINT_NL 
+	; push eax
+	; call FUN_PRINT_INT
+	; add esp, 4 
+	; call FUN_PRINT_NL
+
 	cmp eax, [DD_MEM_SIZE]
 	jb .2
 
-	mov [DD_MEM_SIZE], eax				; 内存大小为 = 最后一个基地址最大的ARDS的基地址32位+长度低32位 
+	mov dword [DD_MEM_SIZE], eax		; 内存大小为 = 最后一个基地址最大的ARDS的基地址32位+长度低32位 
 .2:
 	loop .loop							; ecx--, jmp .loop  
 
@@ -404,6 +469,11 @@ FUN_CAL_MM_SIZE:
 FUN_PRINT_MM_SIZE:
 	push ebx
 	push ecx
+
+	; 测试打印内存大小
+	push dword [DD_MEM_SIZE]
+	call FUN_PRINT_INT
+	add esp, 4 
 
 	mov eax, [DD_MEM_SIZE]				; 存放内存大小
 	xor edx, edx
@@ -573,9 +643,109 @@ FUN_PRINT_NL:
 
 	mov [DD_DISP_POSITION], edi
 
-	pop eax
+	pop eax								; 
 	pop ebx 
 	pop edi 
+
+	ret 
+
+; =====================================================================
+; 启动分页机制
+; 根据内存大小来计算初始化多少的PDE以及多少的PTE，我们给每页分配4KB大小
+; 32操作系统一般是为4K，（Windows）
+; 注意：
+;	页目录表存放在1  M（0x100000）~1.4M处（0x101000）
+;	所有页表存放在1.4M（0x101000）~5.4M处（0x501000）
+; ---------------------------------------------------------------------
+FUN_SETUP_PAGING:
+	xor edx, edx						; edx=0
+	mov eax, [DD_MEM_SIZE]				; eax 为内存大小
+	mov ebx, 0x400000					; 0x400000 = 4M = 4096 * 1024, 
+										; 即一个页表的大小
+	div ebx								; 内存大小 / 4M
+	mov ecx, eax						; ecx = 页表项的个数，即PDE的个数
+	test edx, edx
+	jz .no_remainder					; 每有余数
+	inc ecx
+
+.no_remainder:
+	push ecx							; 保存页表个数
+	; ilinux 为了简化处理，所有线性地址对应相应的物理地址，并且暂不考虑内存的空间
+
+	; 首先初始化页目录
+	mov ax, SELECTOR_DATA
+	mov es, ax
+	mov edi, PAGE_DIR_BASE				; edi = 页目录存放的首地址
+	xor eax, eax
+
+	; eax = PDE，PG_P（该页存在），PS_US_U（用户级页表），PG_RW_W（可读、写、执行）
+
+	mov eax, PAGE_TABLE_BASE | PG_P | PG_US_U | PG_RW_W
+.setup_pde:
+	stosd								; 将ds:eax中的一个dword内容拷贝到ds:edi中，填充页目录表结构
+
+	add eax, 4096						
+	loop .setup_pde
+
+	; 现在开始初始化所有页表
+
+	pop eax								; 取出页表个数
+	mov ebx, 1024						; 每个页表可以存放1024个PTE
+	mul ebx								; 页表个数 * 1024，得到需要多少个PTE
+	mov ecx, eax 
+	mov edi, PAGE_TABLE_BASE			; edi = 页表存放的首地址
+	xor eax, eax
+	; eax = PTE， 页表从物理地址 0 开始映射，所以 0x0 | 后面的属性，该句可有可无，但是这样看折比较直观
+	mov eax, 0x | PG_P | PG_US_U | PG_RW_W
+
+.setup_pte:
+	stosd
+	add eax, 4096
+	loop .setup_pte	
+
+	; 最后设置cr3寄存器和cr0，开启分页机制
+	mov eax, PAGE_DIR_BASE
+	mov cr3, eax						; 将 PAGE_DIR_BASE 存储到 cr3 中
+	mov eax, cr0
+	or eax, 0x80000000					; 将 cr0 中的 PG位 置位
+	mov cr0, eax
+
+	jmp short .setup_pgok				; 和进入保护模式一样，一个跳转指令使其生效，
+										; 表明是一个短跳转，其实不表明也可以
+
+.setup_pgok:
+	nop									; 一个小延迟，让CPU反应一下（为什么要反应呢？）
+	nop
+	ret 
+
+;----------------------------------------------------------------------------
+; 方法名: MEM_COPY
+; 解  释: 内存地址拷贝，将ds:esi开始的cx大小的内存空间拷贝到es:edi内存空间中 
+;----------------------------------------------------------------------------
+; 参  数:
+;		es:edi:		目内存空间
+;		ds:esi:		源内存空间
+;		cx:			拷贝字节大小
+;----------------------------------------------------------------------------
+MEM_COPY: 
+	push esi
+	push edi
+	push ecx
+
+	mov edi, [esp + 4 * 3]
+	mov esi, [esp + 4 * 4]
+	mov ecx, [esp + 4 * 5]
+
+.loop:
+	mov al, [esi]
+	mov [edi], al
+	inc edi
+	inc esi
+	loop .loop					; dec cx; jne .loop 
+
+	pop ecx
+	pop edi
+	pop esi
 
 	ret 
 
@@ -614,7 +784,7 @@ STR_KB:					equ LOADER_PHY_ADDR + _STR_KB
 STR_MEM_INFO:			equ LOADER_PHY_ADDR + _STR_MEM_INFO
 DD_DISP_POSITION:		equ LOADER_PHY_ADDR + _DD_DISP_POSITION
 ; 地址范围描述符结构（Aequress Range Descriptor Structor）
-ADRS:					equ LOADER_PHY_ADDR + _ADRS
+ADRS:
 	DD_BASE_ADDR_LOW:	equ LOADER_PHY_ADDR + _DD_BASE_ADDR_LOW		; 基地址低32位
 	DD_BASE_ADDR_HIG:	equ LOADER_PHY_ADDR + _DD_BASE_ADDR_HIG		; 基地址高32位
 	DD_SIZE_LOW:		equ LOADER_PHY_ADDR + _DD_SIZE_LOW			; 内存大小低32位

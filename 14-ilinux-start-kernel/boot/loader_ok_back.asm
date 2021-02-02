@@ -345,9 +345,20 @@ LABEL_PM_32_START:
 	mov al, 'M'
 	mov word [gs:edi], ax
 
-	call FUN_CAL_MM_SIZE			; 计算内存大小
+	push DD_MCR_COUNT
+	call FUN_PRINT_INT
+	call FUN_PRINT_NL
+    add esp, 4 
 
-	call FUN_PRINT_MM_SIZE			; 打印内存大小
+	call FUN_PRINT_MM_SIZE
+
+	call FUN_CAL_MM_SIZE
+
+	call FUN_PRINT_MM_SIZE
+
+	push STR_TEST
+	call FUN_PRINT
+	add esp, 4 
 
 	jmp $
 
@@ -573,11 +584,87 @@ FUN_PRINT_NL:
 
 	mov [DD_DISP_POSITION], edi
 
-	pop eax
+	pop eax								; 
 	pop ebx 
 	pop edi 
 
 	ret 
+
+; =====================================================================
+; 启动分页机制
+; 根据内存大小来计算初始化多少的PDE以及多少的PTE，我们给每页分配4KB大小
+; 32操作系统一般是为4K，（Windows）
+; 注意：
+;	页目录表存放在1  M（0x100000）~1.4M处（0x101000）
+;	所有页表存放在1.4M（0x101000）~5.4M处（0x501000）
+; ---------------------------------------------------------------------
+FUN_SETUP_PAGING:
+	xor edx, edx						; edx=0
+	mov eax, [DD_MEM_SIZE]				; eax 为内存大小
+	mov ebx, 0x400000					; 0x400000 = 4M = 4096 * 1024, 
+										; 即一个页表的大小
+	div ebx								; 内存大小 / 4M
+	mov ecx, eax						; ecx = 页表项的个数，即PDE的个数
+	test edx, edx
+	jz .no_remainder					; 每有余数
+	inc ecx
+
+.no_remainder:
+	push ecx							; 保存页表个数
+	; ilinux 为了简化处理，所有线性地址对应相应的物理地址，并且暂不考虑内存的空间
+
+	; 首先初始化页目录
+	mov ax, SELECTOR_DATA
+	mov es, ax
+	mov edi, PAGE_DIR_BASE				; edi = 页目录存放的首地址
+	xor eax, eax
+
+	; eax = PDE，PG_P（该页存在），PS_US_U（用户级页表），PG_RW_W（可读、写、执行）
+
+	mov eax, PAGE_TABLE_BASE | PG_P | PG_US_U | PG_RW_W
+.setup_pde:
+	stosd								; 将ds:eax中的一个dword内容拷贝到ds:edi中，填充页目录表结构
+
+	add eax, 4096						
+	loop .setup_pde
+
+	; 现在开始初始化所有页表
+
+	pop eax								; 取出页表个数
+	mov ebx, 1024						; 每个页表可以存放1024个PTE
+	mul ebx								; 页表个数 * 1024，得到需要多少个PTE
+	mov ecx, eax 
+	mov edi, PAGE_TABLE_BASE			; edi = 页表存放的首地址
+	xor eax, eax
+	; eax = PTE， 页表从物理地址 0 开始映射，所以 0x0 | 后面的属性，该句可有可无，但是这样看折比较直观
+	mov eax, PG_P | PG_US_U | PG_RW_W
+
+.setup_pte:
+	stosd
+	add eax, 4096
+	loop .setup_pte	
+
+	; 最后设置cr3寄存器和cr0，开启分页机制
+	mov eax, PAGE_DIR_BASE
+	mov cr3, eax						; 将 PAGE_DIR_BASE 存储到 cr3 中
+	mov eax, cr0
+	or eax, 0x80000000					; 将 cr0 中的 PG位 置位
+	mov cr0, eax
+
+	jmp short .setup_pgok				; 和进入保护模式一样，一个跳转指令使其生效，
+										; 表明是一个短跳转，其实不表明也可以
+
+.setup_pgok:
+	nop									; 一个小延迟，让CPU反应一下（为什么要反应呢？）
+	nop
+	ret 
+
+
+
+
+
+
+
 
 [SECTION .data32]
 align 32
@@ -614,7 +701,7 @@ STR_KB:					equ LOADER_PHY_ADDR + _STR_KB
 STR_MEM_INFO:			equ LOADER_PHY_ADDR + _STR_MEM_INFO
 DD_DISP_POSITION:		equ LOADER_PHY_ADDR + _DD_DISP_POSITION
 ; 地址范围描述符结构（Aequress Range Descriptor Structor）
-ADRS:					equ LOADER_PHY_ADDR + _ADRS
+ADRS:
 	DD_BASE_ADDR_LOW:	equ LOADER_PHY_ADDR + _DD_BASE_ADDR_LOW		; 基地址低32位
 	DD_BASE_ADDR_HIG:	equ LOADER_PHY_ADDR + _DD_BASE_ADDR_HIG		; 基地址高32位
 	DD_SIZE_LOW:		equ LOADER_PHY_ADDR + _DD_SIZE_LOW			; 内存大小低32位

@@ -4,35 +4,47 @@ org	0100h
 ; 导入头文件
 %include "loader.inc"			; 挂载点相关的常量
 %include "fat12hdr.inc"			; 导入FAT12相关的常量
-%include "pm.inc"				; 导入宏gdt
+%include "pm.inc"				; 导入宏GDT
+
 
 [SECTION .gdt]
-; GDT
-LABEL_GDT:			descriptor	0, 0, 0
-LABEL_DESC_CODE32:	descriptor	0, 0xFFFFF, DA_CR | DA_32 | DA_LIMIT_4K		; 0~4G，32位可读代码段，粒度为4KB
-; LABEL_DESC_CODE32:	descriptor	0, 0xFFFF, DA_C + DA_32
-LABEL_DESC_DATA:	descriptor	0, 0xFFFFF, DA_DRW | DA_32 | DA_LIMIT_4K	; 0~3G，32位可读写数据段，粒度为4KB
-; LABEL_DESC_DATA:	descriptor	0, DATA_LEN - 1, DA_DRW
-LABEL_DESC_VIDEO:	descriptor	0xB8000, 0xFFFFF, DA_DRW | DA_DPL3			; 视频段，特权级为3（用户特权级）
-
+; GDT							段基址		段界限		段属性
+LABEL_GDT:			descriptor 0,			0,				0		; 空描述符
+LABEL_DESC_CODE32:	descriptor 0,			0xFFFF,			DA_C + DA_32
+; LABEL_DESC_CODE32:	descriptor 0, SEG_CODE32_LEN - 1, DA_C + DA_32
+											; 代码段,32位
+LABEL_DESC_VIDEO:	descriptor 0xB8000,		0xFFFF,			DA_DRW
+LABEL_DESC_DATA:	descriptor 0,			DATA_LEN - 1,	DA_DRW
+LABEL_DESC_TEST:	descriptor 0x500000,	0xFFFF,			DA_DRW
+LABEL_DESC_STACK:	descriptor 0,			TOP_OF_STACK,	DA_DRWA + DA_32	
+LABEL_DESC_NORMAL:	descriptor 0,			0xFFFF,			DA_DRW
 
 ; GDT END
 
-GDT_LEN				equ $ - LABEL_GDT
-GDT_PTR				dw GDT_LEN
-					dd LOADER_PHY_ADDR + LABEL_GDT
+GDT_LEN		equ $ - LABEL_GDT	; GDT长度
+; ==========================================================================
+; +------------------+------------+ 
+; |		32位基地址	 |	16位界限  |
+; +------------------+------------+
+; ==========================================================================
+GDT_PTR		dw GDT_LEN			; GDT界限
+			dd 0				; GDT基地址
 
-; GDT SELECTOR
-SELECTOR_CODE32		equ LABEL_DESC_CODE32	- LABEL_GDT
+; GDT选择子
+SELECTOR_CODE32		equ LABEL_DESC_CODE32	- LABEL_GDT 
+SELECTOR_VIDEO		equ	LABEL_DESC_VIDEO	- LABEL_GDT
+; 定义数据选择子
 SELECTOR_DATA		equ LABEL_DESC_DATA		- LABEL_GDT
-SELECTOR_VIDEO		equ LABEL_DESC_VIDEO	- LABEL_GDT | SA_RPL3	; 视频段选择字，特权级3（用户特权级）
+SELECTOR_TEST		equ LABEL_DESC_TEST		- LABEL_GDT
+; 定义实模式选择子
+SELECTOR_NORMAL		equ LABEL_DESC_NORMAL	- LABEL_GDT
+; END OF [SECTION .gdt]
 
+; 定义栈段地址
 BASE_OF_STACK		equ 0x100
 
-[SECTION .code16]
-align 16
-[bits 16]
 LABEL_START:
+	; 重置段寄存器
 	mov ax, cs
 	mov ds, ax
 	mov es, ax
@@ -41,29 +53,27 @@ LABEL_START:
 
 	; 清屏操作
 	mov	ax, 0600h		; AH = 6,  AL = 0h
-	mov	bx, 0700h		; (BH = 07h): 0111      light gray
-	mov	cx, 0			; 屏幕左上角: (00, 00)
-	mov	dx, 0x184f		; 屏幕右下角: (80, 50)
+	mov	bx, 0700h		; �ڵװ���(BL = 07h)
+	mov	cx, 0			; ���Ͻ�: (0, 0)
+	mov	dx, 0184fh		; ���½�: (80, 50)
 	int	10h				; int 10h
 
 	mov dh, 0
-	call DISP_STR
+	call DISP_STR	
 
 	; 检查并得到内存信息
-	mov ebx, 0		; 得到后续的内存信息的值，第一次必须为0
+	mov ebx, 0			; 得到后续的内存信息的值，第一次必须为0
 	mov di, _MEM_CHK_BUF; es:di 指向准备写入ADRS的缓冲区地址
 LABEL_MEM_CHK_LOOP:
 	mov eax, 0x0000E820	; eax=0x0000E820
 	mov ecx, 20			; ecx=ADRS的大小
-	mov edx, 0x534D4150 ; 约定签名 "SMAP"
+	mov edx, 0x534D4150 ; "SMAP"
 	int 0x15			; 得到ADRS
 
-	jc LABEL_MEM_CHK_ERROR
-						; 产生了一个进位标志，CF=1，检查得到ADRS错误
+	jc LABEL_MEM_CHK_ERROR					; 产生了一个进位标志，CF=1，检查得到ADRS错误
 	; CF=0
 	add di, 20			; di += 20，es:di指向缓冲区准备放入的下一个ADRS的地址
-	inc dword [_DD_MCR_COUNT]	
-						;ADRS的数量++
+	inc dword [_DD_MCR_COUNT]	;ADRS的数量++
 
 	cmp ebx, 0
 	je LABEL_MEM_CHK_FINISH					; ebx=0 表示拿到最后一个ADRS，完成检查并跳出循环
@@ -79,11 +89,6 @@ LABEL_MEM_CHK_ERROR:
 	jmp $
 
 LABEL_MEM_CHK_FINISH:
-	; mov dh, 2
-	; call DISP_STR
-
-	; jmp $
-
 	xor	ah, ah								; ��
 	xor	dl, dl								; �� ������λ：
 	int	13h									; ��
@@ -111,8 +116,7 @@ LABEL_SEARCH_FOR_LOADERBIN:
 	mov	cx, 11
 LABEL_CMP_FILENAME:
 	cmp	cx, 0
-	; TODO
-	jz LABEL_FILENAME_FOUND
+	jz	LABEL_FILENAME_FOUND				; ����Ƚ��� 11 ���ַ������, ��ʾ�ҵ�
 	dec	cx
 	lodsb									; ds:si -> al
 	cmp	al, byte [es:di]
@@ -124,6 +128,7 @@ LABEL_GO_ON:
 
 LABEL_DIFFERENT:
 	and	di, 0FFE0h							; else ��	di &= E0 Ϊ������ָ����Ŀ��ͷ
+
 	add	di, 20h								;     ��
 	mov	si, KERNEL_FILE_NAME				;     �� di += 20h  ��һ��Ŀ¼��Ŀ
 	jmp	LABEL_SEARCH_FOR_LOADERBIN			;    ��
@@ -145,6 +150,23 @@ LABEL_NO_LOADERBIN:
 LABEL_FILENAME_FOUND:						; �ҵ� KERNEL.BIN ��������������
 	mov	ax, RootDirSectors
 	and	di, 0FFE0h							; di -> ��ǰ��Ŀ�Ŀ�ʼ
+
+	push eax
+	mov eax, [es:di + 0x1c]					
+	mov dword [DW_KERNEL_SIZE], eax			; 保存内核文件大小
+	cmp eax, KERNEL_HAVE_SPACE				; 比较内核文件大小和预留空间大小
+	ja LABEL_KERNEL_FILE_TOO_LARGE			; 如果内核文件大小大于预留空间大小，则跳转到文件太大处理
+	pop eax
+
+
+	jmp LABEL_FILE_START_LOAD
+
+LABEL_KERNEL_FILE_TOO_LARGE:
+	mov dh, 5
+	call DISP_STR
+	jmp $
+
+LABEL_FILE_START_LOAD:
 	add	di, 01Ah							; di -> �� Sector
 	mov	cx, word [es:di]
 	push	cx								; ����� Sector �� FAT �е����
@@ -177,34 +199,59 @@ LABEL_GOON_LOADING_FILE:
 	add	ax, dx
 	add	ax, DeltaSectorNo
 	add	bx, [BPB_BytsPerSec]
+
+	jc LABEL_KERNEL_GREAT_64KB				; 如果bx+=扇区字节量，产生了一个进位，说明已经满64KB，内核文件大小大于64KB
+
 	jmp	LABEL_GOON_LOADING_FILE
+
+LABEL_KERNEL_GREAT_64KB:
+	; es+=0x1000，es指向下一个段，准备继续加载
+	push ax
+	mov ax, es
+	add ax, 0x1000
+	mov es, ax
+	pop ax
+
+	jmp LABEL_GOON_LOADING_FILE
+
 LABEL_FILE_LOADED:
 	; 文件找到并加载之后，跳转到这个位置运行
 	; jmp	KERNEL_SEG:KERNEL_OFFSET	; 
 
 	mov dh, 4
 	call DISP_STR
-
+	; 关闭驱动马达
 	call KILL_MOTOR
 
-	; 1. 加载gdt
+
+LABEL_INIT_GDT:
+
+
+	mov dh, 0
+	call DISP_STR
+
+LABEL_LOAD_GDT:
+	; 1. 首先，进入保护模式必须有一个GDT，我们加载GDT的指针到GDTR中
 	lgdt [GDT_PTR]
 
+	; 2. 关中断
 	cli
 
+	; 3. 打开地址线A20，不打开也行，打开是为了增大寻址范围
 	in al, 0x92
 	or al, 0x02
 	out 0x92, al
 
+	; 4. 切换到保护模式
 	mov eax, cr0
 	or eax, 1
 	mov cr0, eax
 
+	; 5. 跳转到32位代码段
 	jmp dword SELECTOR_CODE32:LABEL_PM_32_START + LOADER_PHY_ADDR
 
+	; 如果上面执行顺利，这一行永远不会执行
 	jmp $
-
-
 
 DISP_STR:
 	mov ax, MESSAGE_LENGTH
@@ -308,9 +355,10 @@ LABEL_GET_FAT_ENRY_OK:
 	pop	bx
 	pop	es
 	ret
+
+; ===========================================================================
+; 关闭驱动马达
 ;----------------------------------------------------------------------------
-
-
 KILL_MOTOR:
 	push dx
 	mov dx, 0x03F2
@@ -320,278 +368,57 @@ KILL_MOTOR:
 	ret
 
 
+;----------------------------------------------------------------------------
+
+
+; 设置栈顶
+
+; STACK_SPACE:	times 0x1000	db 0
+; TOP_OF_STACK	equ $ + LOADER_PHY_ADDR	; 栈顶
+
+
+; 堆栈段
+[SECTION .gs]
+align 32
+[BITS 32]
+LABEL_STACK:	times 512 db 0
+TOP_OF_STACK	equ $ - LABEL_STACK
+
+
+
 [SECTION .code32]
 align 32
 [bits 32]
-LABEL_PM_32_START:
-	; TODO
+LABEL_PM_32_START:						; 代码跳转到这里说明已经进入保护模式
 	mov ax, SELECTOR_DATA
 	mov ds, ax
 	mov es, ax
 	mov ss, ax
-	mov fs, ax
-
-	mov esp, TOP_OF_STACK
-
+	mov fs, ax							; ds = es = ss = gs
+	
+	mov sp, TOP_OF_STACK				; 设置栈顶
+	
 	mov ax, SELECTOR_VIDEO
-	mov gs, ax
-
-	; 显示数据
-	mov edi, (80 * 10 + 0) * 2		; 屏幕第9行，第0列
-	mov ah, 0x0C					; 0000:黑底 1100:红字
+	mov gs, ax				
+	
+	
+	; 打印一些字符串
+	mov edi, (80 * 9 + 0) * 2			; 屏幕第9行，第0列
+	mov ah, 0xC
 	mov al, 'P'
-	mov word [gs:edi], ax			; 将数据写入到显存中
+	mov word [gs:edi], ax
 	add edi, 2
 	mov al, 'M'
 	mov word [gs:edi], ax
 
-	call FUN_CAL_MM_SIZE			; 计算内存大小
-
-	call FUN_PRINT_MM_SIZE			; 打印内存大小
-
 	jmp $
-
-; =====================================================================
-; 计算内存大小
-; ---------------------------------------------------------------------
-FUN_CAL_MM_SIZE:						
-	push esi
-	push edi
-	push ecx
-	push edx
-
-	mov esi, MEM_CHK_BUF				; ds:esi 指向缓冲区
-	mov ecx, [DD_MCR_COUNT]				; ecx=有多少个ADRS，记为i
-.loop:									
-	mov edx, 5							; ADRS有5个成员变量，记为j
-	mov edi, ADRS						; ds:edi -> 一个ARDS结构
-.1:										
-	push dword [esi]					; 
-	pop eax								; ds:eax -> 缓冲区中的第一个ARDS结构
-	stosd								; 将ds:eax中的一个dword内容拷贝到ds:edi，填充ADRS结构，并edit+4 
-	add esi, 4							; ds:esi -> 指向ADRS中的下一个变量
-	dec edx								; j--
 	
-	cmp edx, 0							; 									
-	jnz .1								; 如果数据没有填充完毕，将继续填充
-	
-	cmp dword [DD_TYPE], 1				; 
-	jne .2								; 
-
-	mov eax, [DD_BASE_ADDR_LOW]			; eax 为基地址低32位
-	add eax, [DD_SIZE_LOW]				; eax = 基地址低32位 + 长度低32位 --> 这个ARDS结构指代的内存的大小
-										; 为什么不算高32位，因为32位可以表示0~4G大小的内存，而32位CPU也只能到4G
-										; 我们编写的是32位操作系统，高32位系统是为64位操作系统准备的，我们不需要
-
-	cmp eax, [DD_MEM_SIZE]
-	jb .2
-
-	mov [DD_MEM_SIZE], eax				; 内存大小为 = 最后一个基地址最大的ARDS的基地址32位+长度低32位 
-.2:
-	loop .loop							; ecx--, jmp .loop  
-
-	pop edx
-	pop ecx
-	pop edi
-	pop esi
-
-	ret
-		
-
-; =====================================================================
-; 打印内存大小函数
-; ---------------------------------------------------------------------
-FUN_PRINT_MM_SIZE:
-	push ebx
-	push ecx
-
-	mov eax, [DD_MEM_SIZE]				; 存放内存大小
-	xor edx, edx
-
-	mov ebx, 1024
-
-	div ebx								; eax / 1024 (KB)
-										; ax 为商，dx为余数
-	push eax
-	; 显示一个字符串"MEMORY SIZE"
-	push STR_MEM_INFO
-	call FUN_PRINT
-	add esp, 4
-	pop eax								; 重置栈顶指针
-	; 将内存大小显示
-	push eax							; 将一个数字压入栈
-	call FUN_PRINT_INT					; 调用显示数字函数
-	add esp, 4							; 重置栈顶指针
-
-	; 显示"KB"
-	push STR_KB
-	call FUN_PRINT
-	add esp, 4							; 重置栈顶指针
-
-	pop ecx
-	pop ebx
-
-	ret
-	
-
-; =====================================================================
-; 保护模式下：打印字符串
-; arg: 字符串的地址
-; ---------------------------------------------------------------------
-FUN_PRINT:
-	push esi
-	push edi
-	push ebx
-	push ecx
-	push edx
-
-	mov esi, [esp + 4 * 6]				; 得到字符串地址
-	mov edi, [DD_DISP_POSITION]			; 得到显示位置
-	mov ah, 0x0f
-
-.1:
-	lodsb								; ds:esi -> al，esi++
-	test al, al
-
-	jz .print_end						; 遇到了0结束打印
-
-	cmp al, 10
-	jz .print_nl						; 打印换行符
-	; 如果不是换行符，也不是\0，那我们认为是一个可以打印的字符
-	mov [gs:edi], ax					; 将字符显示
-	add edi, 2							; 调整偏移量
-	jmp .1 
-
-.print_nl:
-	call FUN_PRINT_NL					; 打印换行符，也就是换行
-	jmp .1 
-
-.print_end:
-	mov dword [DD_DISP_POSITION], edi	; 打印完毕更新显示
-
-	pop edx
-	pop ecx
-	pop ebx
-	pop edi
-	pop esi
-
-	ret
-
-; =====================================================================
-; 显示一个整数
-; ---------------------------------------------------------------------
-FUN_PRINT_INT:
-	mov ah, 0x0F						; 设置黑底白字
-	mov al, '0'
-	push edi
-	mov edi, [DD_DISP_POSITION]
-	mov [gs:edi], ax
-	add edi, 2
-	mov al, 'X'
-	mov [gs:edi], ax
-	add edi, 2
-	mov [DD_DISP_POSITION], edi			; 显示完毕后重置光标位置
-	pop edi
-
-	mov eax, [esp + 4]
-	shr eax, 24
-	call FUN_PRINT_AL
-
-	mov eax, [esp + 4]
-	shr eax, 16
-	call FUN_PRINT_AL
-
-	mov eax, [esp + 4]
-	shr eax, 8
-	call FUN_PRINT_AL
-
-	mov eax, [esp + 4]
-	call FUN_PRINT_AL
-
-	ret
-
-
-; =====================================================================
-; 显示AL中的数字
-; ---------------------------------------------------------------------
-FUN_PRINT_AL:
-	push eax
-	push ecx
-	push edx
-	push edi
-    
-	mov edi, [DD_DISP_POSITION]			; 取得当前光标所在位置
-
-	mov ah, 0x0F						; 设置黑底白字
-	mov dl, al							; dl = al
-	shr al, 4							; al 右移 4 位
-	mov ecx, 2							; 设置循环次数
-
-.begin:
-	and al, 01111b
-	cmp al, 9
-	ja .1
-	add al, '0'
-	jmp .2
-
-.1:
-	sub al, 10
-	add al, 'A'
-
-.2:
-	mov [gs:edi], ax
-	add edi, 2
-
-	mov al, dl
-	loop .begin
-
-	mov [DD_DISP_POSITION], edi			; 显示完毕后更新光标位置
-
-	pop edi
-	pop ecx
-	pop edx
-	pop eax
-
-	ret
-
-
-FUN_PRINT_NL:
-	push edi
-	push ebx 
-	push eax
-
-
-	mov edi, [DD_DISP_POSITION]
-	mov eax, edi
-	mov bl, 160
-	div bl
-	
-	inc eax
-	mov bl, 160
-	mul bl
-	mov edi, eax
-
-	mov [DD_DISP_POSITION], edi
-
-	pop eax
-	pop ebx 
-	pop edi 
-
-	ret 
 
 [SECTION .data32]
 align 32
 DATA32:
-; =====================================================================
-; 实模式下的数据
-; ---------------------------------------------------------------------
 _DD_MCR_COUNT:			dd 0
 _DD_MEM_SIZE:			dd 0
-_STR_TEST:				dd "Print ~~~", 10, 0
-_STR_KB:				dd "KB", 10, 0
-_STR_MEM_INFO:			dd "MEMORY SIZE:", 0
-; 存储当前光标所在位置
-_DD_DISP_POSITION:		dd (80 * 6 + 0) * 2
 ; 地址范围描述符结构（Address Range Descriptor Structor）
 _ADRS:
 	_DD_BASE_ADDR_LOW:	dd 0			; 基地址低32位
@@ -602,34 +429,17 @@ _ADRS:
 ; 内存检查结果缓冲区，用于存放没检查的ADRS结构，256字节是为了对齐32位，
 ; 256/20=12.8，所以这个缓冲区可以存放12个ADRS
 _MEM_CHK_BUF:			times 256 db 0
-
-
-; =====================================================================
-; 保护模式下的数据
-; ---------------------------------------------------------------------
-DD_MCR_COUNT:			equ LOADER_PHY_ADDR + _DD_MCR_COUNT 
-DD_MEM_SIZE:			equ LOADER_PHY_ADDR + _DD_MEM_SIZE
-STR_TEST:				equ LOADER_PHY_ADDR + _STR_TEST
-STR_KB:					equ LOADER_PHY_ADDR + _STR_KB
-STR_MEM_INFO:			equ LOADER_PHY_ADDR + _STR_MEM_INFO
-DD_DISP_POSITION:		equ LOADER_PHY_ADDR + _DD_DISP_POSITION
-; 地址范围描述符结构（Aequress Range Descriptor Structor）
-ADRS:					equ LOADER_PHY_ADDR + _ADRS
-	DD_BASE_ADDR_LOW:	equ LOADER_PHY_ADDR + _DD_BASE_ADDR_LOW		; 基地址低32位
-	DD_BASE_ADDR_HIG:	equ LOADER_PHY_ADDR + _DD_BASE_ADDR_HIG		; 基地址高32位
-	DD_SIZE_LOW:		equ LOADER_PHY_ADDR + _DD_SIZE_LOW			; 内存大小低32位
-	DD_SIZE_HIG:		equ LOADER_PHY_ADDR + _DD_SIZE_HIG			; 内存大小高32位
-	DD_TYPE:			equ LOADER_PHY_ADDR + _DD_TYPE				; ADRS类型
-MEM_CHK_BUF:			equ LOADER_PHY_ADDR + _MEM_CHK_BUF			; 
+; 保存内核文件大小
+DW_KERNEL_SIZE			dd 0
 
 
 DATA_LEN				equ $ - DATA32
-
 
 ; =====================================================================
 ; 字符串常量
 ; ---------------------------------------------------------------------
 KERNEL_FILE_NAME	db "KERNEL  BIN", 0 ; 内核文件名
+
 
 MESSAGE_LENGTH		equ 13
 BOOT_MESSAGE:		db "HELLO WORD   "
@@ -637,11 +447,4 @@ BOOT_MESSAGE:		db "HELLO WORD   "
 					db "MEM CHK OK..."
 					db "NO KERNEL...."
 					db "HELLO KERNEL."
-
-
-; 堆栈段
-[SECTION .gs]
-align 32
-LABEL_STACK:		times 512 db 0
-TOP_OF_STACK		equ $ - LABEL_STACK
-
+					db "FILE TOO BIG."
