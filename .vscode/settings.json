@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "kernel.h": "c",
+        "protect.h": "c",
+        "config.h": "c",
+        "syslib.h": "c",
+        "process.h": "c",
+        "string.h": "c"
+    }
+}
