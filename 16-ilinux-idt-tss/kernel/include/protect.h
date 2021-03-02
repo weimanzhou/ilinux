@@ -168,11 +168,11 @@ typedef struct tss_s
 
 /* 系统段描述符类型值说明 */
 #define	DA_LDT			    0x82	/* 局部描述符表段类型值			*/
-#define	DA_TaskGate		    0x85	/* 任务门类型值				*/
+#define	DA_TASK_GATE		    0x85	/* 任务门类型值				*/
 #define	DA_386TSS		    0x89	/* 可用 386 任务状态段类型值		*/
-#define	DA_386CGate		    0x8C	/* 386 调用门类型值			*/
-#define	DA_386IGate		    0x8E	/* 386 中断门类型值			*/
-#define	DA_386TGate		    0x8F	/* 386 陷阱门类型值			*/
+#define	DA_386C_GATE		    0x8C	/* 386 调用门类型值			*/
+#define	DA_386I_GATE		    0x8E	/* 386 中断门类型值			*/
+#define	DA_386T_GATE		    0x8F	/* 386 陷阱门类型值			*/
 
 #define DESCRIPTOR_SIZE             8   /* 描述符大小 */
 

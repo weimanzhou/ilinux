@@ -32,7 +32,7 @@ FD 				= ilinux.img
 ASM 			= nasm
 ASM_PARA 		= -i boot/include/  -i kernel/include/ -f elf 
 CC 				= gcc
-CC_PARA			= -I $(sk)/include -I include -fno-builtin
+CC_PARA			= -I $(sk)/include -I include -fno-builtin -m32 -c 
 LD 				= ld 
 LD_PARA			= -Ttext 0x1000 -m elf_i386
 
@@ -43,7 +43,7 @@ ILINUX_BOOT 	= $(tb)/boot.bin $(tb)/loader.bin $(tk)/kernel.bin
 ILINUX_KERNEL 	= $(tk)/kernel.bin 
 
 KERNEL_OBJS 	= $(tk)/kernel.o $(tk)/kernel_i386_lib.o $(tk)/main.o  \
-				  $(tk)/protect.o $(tk)/table.o $(tk)/init.o 
+				  $(tk)/protect.o $(tk)/table.o $(tk)/init.o $(tk)/exception.o
 
 STDIO_OBJS      = $(tl)/vsprintf.o
 I386_OBJS       = $(tl)/i386/ipc/ipc_msg.o
@@ -125,13 +125,13 @@ $(tk)/kernel.o: kernel/kernel.asm
 $(tk)/kernel_i386_lib.o: kernel/kernel_i386_lib.asm
 	$(ASM) $(ASM_PARA) $< -o $@
 $(tk)/main.o: kernel/main.c
-	$(CC) $(CC_PARA) -m32 -c -o $@ $<
+	$(CC) $(CC_PARA) -o $@ $<
 $(tk)/init.o: kernel/init.c
-	$(CC) $(CC_PARA) -m32 -c -o $@ $<
+	$(CC) $(CC_PARA) -o $@ $<
 $(tk)/protect.o: kernel/protect.c
-	$(CC) $(CC_PARA) -m32 -c -o $@ $<
+	$(CC) $(CC_PARA) -o $@ $<
 $(tk)/table.o: kernel/table.c
-	$(CC) $(CC_PARA) -m32 -c -o $@ $<
+	$(CC) $(CC_PARA) -o $@ $<
 
 $(tl)/ansi/string.o: $(lansi)/string.asm
 	$(ASM) $(ASM_PARA) -o $@ $<
@@ -150,3 +150,7 @@ $(tl)/vsprintf.o: $(lstdio)/vsprintf.c
 
 $(tl)/i386/ipc/ipc_msg.o: $(li386)/ipc/ipc_msg.asm
 	$(ASM) $(ASM_PARA) -o $@ $<
+
+$(tk)/exception.o: kernel/exception.c
+	$(CC) $(CC_PARA) -m32 -c -o $@ $<
+	

@@ -19,6 +19,12 @@ void ilinux_main(void)
 
 	low_print("Hello C!!!");
 
+	// 测试零除错误
+	// int a = 0;
+	// int b = 5 / a;
+
+	low_print("Hello C!!!");
+
 
 	while(1) {}
 }

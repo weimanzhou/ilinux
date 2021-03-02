@@ -24,30 +24,30 @@ PUBLIC Tss_t tss;
 
 /* 中断门信息 */
 struct gate_desc_s {
-    u8_t vector;            /* 中断向量号 */
-    int_handler_t handler;  /* 处理例程 */
-    u8_t privilege;         /* 门权限 */
-};
+    u8_t vector;            // 中断向量号
+    int_handler_t handler;  // 处理例程
+    u8_t privilege;         // 门权限
+} gate_desc_s;
 
 /* 中断门信息表 */
 struct gate_desc_s int_gate_table[] = {
         /* **************************** 异常 ****************************** */
-        // { INT_VECTOR_DIVIDE,		divide_error,			KERNEL_PRIVILEGE },
-        // { INT_VECTOR_DEBUG,			single_step_exception,	KERNEL_PRIVILEGE },
-        // { INT_VECTOR_NMI,			nmi,					KERNEL_PRIVILEGE },
-        // { INT_VECTOR_BREAKPOINT,	breakpoint_exception,	KERNEL_PRIVILEGE },
-        // { INT_VECTOR_OVERFLOW,		overflow,				KERNEL_PRIVILEGE },
-        // { INT_VECTOR_BOUNDS,		bounds_check,			KERNEL_PRIVILEGE },
-        // { INT_VECTOR_INVAL_OP,		inval_opcode,			KERNEL_PRIVILEGE },
-        // { INT_VECTOR_COPROC_NOT,	copr_not_available,		KERNEL_PRIVILEGE },
-        // { INT_VECTOR_DOUBLE_FAULT,	double_fault,			KERNEL_PRIVILEGE },
-        // { INT_VECTOR_COPROC_SEG,	copr_seg_overrun,		KERNEL_PRIVILEGE },
-        // { INT_VECTOR_INVAL_TSS,		inval_tss,				KERNEL_PRIVILEGE },
-        // { INT_VECTOR_SEG_NOT,		segment_not_present,	KERNEL_PRIVILEGE },
-        // { INT_VECTOR_STACK_FAULT,	stack_exception,		KERNEL_PRIVILEGE },
-        // { INT_VECTOR_PROTECTION,	general_protection,		KERNEL_PRIVILEGE },
-        // { INT_VECTOR_PAGE_FAULT,	page_fault,				KERNEL_PRIVILEGE },
-        // { INT_VECTOR_COPROC_ERR,	copr_error,				KERNEL_PRIVILEGE },
+        { INT_VECTOR_DIVIDE,		divide_error,			KERNEL_PRIVILEGE },
+        { INT_VECTOR_DEBUG,			single_step_exception,	KERNEL_PRIVILEGE },
+        { INT_VECTOR_NMI,			nmi,					KERNEL_PRIVILEGE },
+        { INT_VECTOR_BREAKPOINT,	breakpoint_exception,	KERNEL_PRIVILEGE },
+        { INT_VECTOR_OVERFLOW,		overflow,				KERNEL_PRIVILEGE },
+        { INT_VECTOR_BOUNDS,		bounds_check,			KERNEL_PRIVILEGE },
+        { INT_VECTOR_INVAL_OP,		inval_opcode,			KERNEL_PRIVILEGE },
+        { INT_VECTOR_COPROC_NOT,	copr_not_available,		KERNEL_PRIVILEGE },
+        { INT_VECTOR_DOUBLE_FAULT,	double_fault,			KERNEL_PRIVILEGE },
+        { INT_VECTOR_COPROC_SEG,	copr_seg_overrun,		KERNEL_PRIVILEGE },
+        { INT_VECTOR_INVAL_TSS,		inval_tss,				KERNEL_PRIVILEGE },
+        { INT_VECTOR_SEG_NOT,		segment_not_present,	KERNEL_PRIVILEGE },
+        { INT_VECTOR_STACK_FAULT,	stack_exception,		KERNEL_PRIVILEGE },
+        { INT_VECTOR_PROTECTION,	general_protection,		KERNEL_PRIVILEGE },
+        { INT_VECTOR_PAGE_FAULT,	page_fault,				KERNEL_PRIVILEGE },
+        { INT_VECTOR_COPROC_ERR,	copr_error,				KERNEL_PRIVILEGE },
         /* ************************** 硬件中断 **************************** */
         // { INT_VECTOR_IRQ0 + 0,		hwint00,				KERNEL_PRIVILEGE },
         // { INT_VECTOR_IRQ0 + 1,		hwint01,				KERNEL_PRIVILEGE },
@@ -113,6 +113,16 @@ PUBLIC void init_protect(void) {
     init_segment_desc(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss) - 1, DA_386TSS);
     tss.iobase =  sizeof(tss);                               // 空 IO 位图
 
+    //  初始化中断向量门
+    struct gate_desc_s * p_gate = &int_gate_table[0];
+    for ( ; p_gate < &int_gate_table[sizeof(int_gate_table) / sizeof(gate_desc_s)]; p_gate++) {
+        init_gate(
+            p_gate->vector,
+            DA_386I_GATE,
+            p_gate->handler,
+            p_gate->privilege
+        );
+    }
 
 
     // init_segment_desc(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss) - 1, DA_386TSS);
@@ -171,8 +181,7 @@ PUBLIC void init_segment_desc(
         phys_bytes base,
         phys_bytes limit,
         u16_t attribute
-)
-{
+) {
     /* 初始化一个数据段描述符 */
     p_desc->limit_low	= limit & 0x0FFFF;			/* 段界限 1		(2 字节) */
     p_desc->base_low	= base & 0x0FFFF;			/* 段基址 1		(2 字节) */
@@ -183,35 +192,42 @@ PUBLIC void init_segment_desc(
     p_desc->base_high	= (base >> 24) & 0x0FF;     /* 段基址 3		(1 字节) */
 }
 
-/*=========================================================================*
- *				init_gate				   *
- *				初始化一个 386门描述符
- *=========================================================================*/
+/************************************************************************
+    > 初始化一个 386 门描述符
+    > @name 	init_gate			
+    > @param vector     中断向量号
+    > @param desc_type  门描述符类型
+    > @param handler    中断处理函数
+    > @param privilege  特权等级
+ ************************************************************************/
 PRIVATE void init_gate(
         u8_t vector,
         u8_t desc_type,
         int_handler_t  handler,
         u8_t privilege
-)
-{
+) {
     // 得到中断向量对应的门结构
     gate_t* p_gate = &idt[vector];
     // 取得处理函数的基地址
     u32_t base_addr = (u32_t)handler;
     // 一一赋值
     p_gate->offset_low = base_addr & 0xFFFF;
-    p_gate->selector = SELECTOR_KERNEL_CS;
-    p_gate->dcount = 0;
-    p_gate->attr = desc_type | (privilege << 5);
+    p_gate->selector   = SELECTOR_KERNEL_CS;
+    p_gate->dcount     = 0;
+    p_gate->attr       = desc_type | (privilege << 5);
 #if _WORD_SIZE == 4
     p_gate->offset_high = (base_addr >> 16) & 0xFFFF;
 #endif
 }
 
-/*=========================================================================*
- *				seg2phys				   
- *		由段名求其在内存中的物理地址
- *=========================================================================*/
+/************************************************************************
+    > 由段名求其在内存中的物理地址
+    > @name             seg2phys			
+    > @param vector     中断向量号
+    > @param desc_type  门描述符类型
+    > @param handler    中断处理函数
+    > @param privilege  特权等级
+ ************************************************************************/
 PUBLIC phys_bytes seg2phys(U16_t seg)
 {
     seg_descriptor_t* p_dest = &gdt[seg >> 3];
