@@ -5,6 +5,9 @@
         "config.h": "c",
         "syslib.h": "c",
         "process.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "lib.h": "c",
+        "stdarg.h": "c",
+        "caller.h": "c"
     }
 }
