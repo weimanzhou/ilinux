@@ -36,10 +36,6 @@ PUBLIC void clock_task(void) {
 
 int count = 0;
 
-
-// 这里运行一段时间后，就会抛出异常，这是因为每次发生中断的时候，会压入五个参数，而使用 ret 返回的时候
-// 只会 esp + 4 ，所以运行一段时间过后系统就会发生错误，如果想解决这个问题，只需要使用 iretd 即可，这是一个中断
-// 返回，能够将五个参数全部抛出
 PRIVATE int clock_handler(int irq) {
     count++;
     if (count % 100 == 0) k_printf(">");
