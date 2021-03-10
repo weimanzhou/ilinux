@@ -9,18 +9,15 @@
 #ifndef _ILINUX_PROCESS_H
 #define _ILINUX_PROCESS_H
 
-/* 
- * 进程，一个进程是包含 进程的寄存器信息(栈帧) 和 LDT(本地描述符表) 以及 自定义的一些属性
+/* 进程，一个进程是包含 进程的寄存器信息(栈帧) 和 LDT(本地描述符表) 以及 自定义的一些属性
  * CPU 通过 PCB来调度进程
  */
 typedef struct process_s {
-    /* ===================================================================================== */
     /* 这里存放 进程的寄存器信息(栈帧) 和 LDT(本地描述符表) 信息，它们由 CPU 使用并调度，和硬件相关 */
-    Stackframe_t regs;          /* 进程的栈帧，包含进程自己所有寄存器的信息 */
+    stackframe_t regs;          /* 进程的栈帧，包含进程自己所有寄存器的信息 */
     reg_t ldt_sel;              /* 进程的 LDT 选择子 */
-    seg_descriptor_t ldt[2];     /* 进程的 LDT 的数据，长度2是 LDT_SIZE，它定义在文件 protect.h 中，
+    seg_descriptor_t ldt[2];    /* 进程的 LDT 的数据，长度2是 LDT_SIZE，它定义在文件 protect.h 中，
                                  * 直接给出就不用导入该头文件了 */
-    /* ===================================================================================== */
     /* 从这后面都是用户自定义的属性，和硬件无关 */
 
     /* 堆栈保护字
@@ -57,8 +54,8 @@ typedef struct process_s {
     clock_t alarm;                  /* 进程下一次闹钟响起的时间 */
 
     /* 消息通信相关 */
-    message_t *inbox;               /* 收件箱，当有人发送消息过来将被邮局将消息放在这里，它是一个物理地址 */
-    message_t *outbox;              /* 发件箱，当一个进程发送消息给另一个进程，邮局将会从这里获取要发送的消息，
+    message_t *ibox;                /* 收件箱，当有人发送消息过来将被邮局将消息放在这里，它是一个物理地址 */
+    message_t *obox;                /* 发件箱，当一个进程发送消息给另一个进程，邮局将会从这里获取要发送的消息，
                                      * 同上它也是一个物理地址 */
     message_t *transfer;            /* 存放中转消息，物理地址 */
     int get_form;                   /* 当一个进程执行接收操作，但没有发现有任何人想发消息过来时将会堵塞，然后将自己期望
@@ -73,7 +70,8 @@ typedef struct process_s {
 #define SYS_TASK_STACK_GUARD	((reg_t) (sizeof(reg_t) == 2 ? 0xBEEF : 0xDEADBEEF))    /* 任务的 */
 #define SYS_SERVER_STACK_GUARD	((reg_t) (sizeof(reg_t) == 2 ? 0xBFEF : 0xDEADCEEF))    /* 服务的 */
 
-/* flags 状态标志位图域中的标志位状态定义
+/* 
+ * flags 状态标志位图域中的标志位状态定义
  *
  * 现在一共有三种状态，只要任一状态位被置位，那么进程就会被堵塞
  */
@@ -97,7 +95,7 @@ typedef struct process_s {
 #define BEG_USER_PROC_ADDR  (&proc_table[NR_TASKS + NR_SERVERS +LOW_USER])
 
 /* 下面的这些宏能帮助我们快速做一些进程判断等简单的工作 */
-#define NIL_PROC			((Process_t *) 0)							 /* 空进程指针 */
+#define NIL_PROC			((process_t *) 0)							 /* 空进程指针 */
 #define logic_nr_2_index(n) (NR_TASKS + n)
 #define is_idle_hardware(n) ((n) == IDLE_TASK || (n) == HARDWARE)		 /* 是空闲进程 或 硬件（特殊进程）？ */
 #define is_ok_proc_nr(n)    ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS + NR_SERVERS)   /* 是个合法的进程索引号？ */
@@ -117,35 +115,37 @@ typedef struct process_s {
  * proc = proc_addr(n);
  * 将进程n的进程表项地址赋给rp,无论它是正还是负。
  */
-#define proc_addr(n)      (p_proc_addr + NR_TASKS)[(n)]    /* 得到进程的指针 */
-#define cproc_addr(n)     (&(proc_table + NR_TASKS)[(n)])  /* 得到进程的地址 */
+#define proc_addr(n)            (p_proc_addr + NR_TASKS)[(n)]    /* 得到进程的指针 */
+#define cproc_addr(n)           (&(proc_table + NR_TASKS)[(n)])  /* 得到进程的地址 */
 /* 进程的虚拟地址转物理地址 */
-#define proc_vir2phys(p, vir) \
-    ((phys_bytes)(p)->map.base + (vir_bytes)(vir))
+#define proc_vir2phys(p, vir)   ((phys_bytes)(p)->map.base + (vir_bytes)(vir))
 
 /* 
  * 进程表，记录系统的所有进程
  * 大小是
  */
-EXTERN Process_t proc_table[NR_TASKS + NR_SERVERS + NR_PROCS];
-EXTERN Process_t* p_proc_addr[NR_TASKS + NR_SERVERS + NR_PROCS]; /* 因为进程表的访问非常频繁,并且计算数组中的一个地址需要
+EXTERN process_t proc_table[NR_TASKS + NR_SERVERS + NR_PROCS];
+EXTERN process_t* p_proc_addr[NR_TASKS + NR_SERVERS + NR_PROCS]; /* 因为进程表的访问非常频繁,并且计算数组中的一个地址需要
                                                                   * 用到很慢的乘法操作, 所以使用一个指向进程表项的指针数组
                                                                   * p_proc_addr 来加快操作速度。 */
 
-/* bill_proc指向正在对其CPU使用计费的进程。当一个用户进程调用文件系统,而文件系统正在运行
+
+/* 
+ * bill_proc指向正在对其CPU使用计费的进程。当一个用户进程调用文件系统,而文件系统正在运行
  * 时,curr_proc(在global.h中)指向文件系统进程,但是bill_proc将指向发出该调用的用户进程。因为文件系统使用的
  * CPU时间被作为调用者的系统时间来计费。
  */
-EXTERN Process_t* bill_proc;
+EXTERN process_t* bill_proc;
 
-/* 两个数组ready_head和ready_tail用来维护调度队列。例如,ready_head[TASK_Q]指向就绪任务队列中的第一个进程。
+/* 
+ * 两个数组ready_head和ready_tail用来维护调度队列。例如,ready_head[TASK_Q]指向就绪任务队列中的第一个进程。
  * 就绪进程队列一共分为三个
  * ready_head[TASK_QUEUE]：就绪系统任务队列
  * ready_head[SERVER_QUEUE]：就绪服务进程队列
  * ready_head[USER_QUEUE]：就绪用户进程队列
  * 再举个例子，我们需要拿到用户进程队列的第3个进程，则应该这么拿：ready_head[USER_QUEUE]->next_ready->next_ready，简单吧？
  */
-EXTERN Process_t* ready_head[NR_PROC_QUEUE];
-EXTERN Process_t* ready_tail[NR_PROC_QUEUE];
+EXTERN process_t* ready_head[NR_PROC_QUEUE];
+EXTERN process_t* ready_tail[NR_PROC_QUEUE];
 
 #endif //_ILINUX_PROCESS_H
