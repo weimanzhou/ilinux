@@ -29,7 +29,7 @@ PUBLIC void ilinux_init(void) {
     low_print("------ init -----\n");
 
     // 2. 保存内核数据段基地址
-    data_base = seg2phys(SELECTOR_KERNEL_DS);
+    // data_base = seg2phys(SELECTOR_KERNEL_DS);
 
     // 3. 初始化保护模式
     init_protect();

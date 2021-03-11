@@ -25,7 +25,7 @@ PUBLIC int k_printf(const char* fmt, ...) {
     char* ap;
     int len;
 
-    char buf[256];
+    char buf[160];
 
     // 准备访问可变参数
     va_start(ap, fmt);
@@ -89,9 +89,9 @@ PUBLIC void bad_compare(char* file, int line, int lhs, char* what, int rhs) {
  ************************************************************************/
 PUBLIC void panic(_CONST char* msg, int error_no) {
     if (msg != NIL_PTR) {
-        printf("\n!********** ilinux kernel panic: %s **********!\n", msg);
+        printf("\n!***************** ilinux kernel panic: %s ****************!\n", msg);
         if (error_no != NO_NUM) {
-            printf("\n!********** ilinux kernel  code: %d **********!\n", error_no);
+            printf("\n!***************** ilinux kernel  code: %d ****************!\n", error_no);
         }
         printf("\n");
     }

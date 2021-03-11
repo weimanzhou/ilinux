@@ -83,7 +83,7 @@ debug: $(FD) $(BOCHS_CONFIG)
 	@bochs $(BOCHS_ARGA)
 
 run: $(FD)
-	@qemu-system-i386 -drive file=$(FD),if=floppy
+	@qemu-system-x86_64 -drive file=$(FD),if=floppy
 	# qemu-system-i386 -kernel bzImage -hda $(FD) id=ilinux
 	# qemu-system-i386 -drive file=$(FD) if=ilinux
 	@echo "使用虚拟机挂载即可运行"

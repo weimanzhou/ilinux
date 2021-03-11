@@ -31,3 +31,5 @@ keyboard_mapping: enabled=1, map=$BXSHARE/keymaps/x11-pc-us.map
 # 断点设置
 magic_break: enabled=1 
 
+# GUI debug
+display_library: x, options=gui_debug

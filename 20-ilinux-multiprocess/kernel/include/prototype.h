@@ -16,8 +16,8 @@
 #define ILINUX_PROTOTYPE_H
 
 /* 结构体声明 */
-struct process_s;
-struct rtc_time;
+// struct process_s;
+// struct rtc_time;
 
 /*************************************************************************
 	> kernel.asm
@@ -41,6 +41,7 @@ _PROTOTYPE( void panic, (const char* msg, int error_no ) );
 _PROTOTYPE( void idle_task, (void) );
 _PROTOTYPE( void test_task_a, (void) );
 _PROTOTYPE( void test_task_b, (void) );
+_PROTOTYPE( void test_task_c, (void) );
 
 /*************************************************************************
 	> protect.c
@@ -52,7 +53,7 @@ _PROTOTYPE( void init_protect, (void) );
 /*************************************************************************
 	> kernel_386lib.asm
 **************************************************************************/
-// _PROTOTYPE( void phys_copy, (phys_bytes _src, phys_bytes _dest, phys_bytes _size) );
+_PROTOTYPE( void phys_copy, (phys_bytes _src, phys_bytes _dest, phys_bytes _size) );
 _PROTOTYPE( void low_print, (char* _str) );
 _PROTOTYPE( u8_t in_byte, (port_t port) );
 _PROTOTYPE( void out_byte, (port_t port, U8_t value) );

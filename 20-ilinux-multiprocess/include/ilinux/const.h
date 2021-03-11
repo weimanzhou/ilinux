@@ -11,7 +11,6 @@
 #ifndef _ILINUX_CONST_H
 #define _ILINUX_CONST_H
 
-
 #ifndef CHIP
 #error CHIP IS not defined
 #endif
@@ -24,7 +23,6 @@
 #define PUBLIC				
 /* FORWARD，一些编译器要求它是静态static的 */
 #define FORWARD			static	/* some compilers require this to be 'static' */
-
 
 #define TRUE            1	/* 布尔值：真 */
 #define FALSE           0	/* 布尔值：假 */
@@ -62,7 +60,7 @@
 #define MIN(a, b)		((a) < (b) ? (a) : (b))
 
 /* 系统任务数量 */
-#define NR_TASKS		(2 + NR_CONTROLLERS)
+#define NR_TASKS		(3 + NR_CONTROLLERS)
 #define NR_SERVERS		0
 
 /* 内存是通过块分配的。 */

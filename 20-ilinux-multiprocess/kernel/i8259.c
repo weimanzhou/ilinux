@@ -38,17 +38,17 @@ PUBLIC void init_interrupt(void) {
 
     // 2. 向端口 0x21 （主片）和 0xa1 （从片）写入 ICW2
     // 前5位是：分配给8259A的中断向量 后三位：000
-    out_byte(INT_M_CTLMASK, 32);        // IRQ0 -- 32, IRQ1 -- 33 ...
-    out_byte(INT_S_CTLMASK, 40);        // IRQ0 -- 32, IRQ1 -- 33 ...
+    out_byte(INT_M_CTLMASK, INT_VECTOR_IRQ0);        // IRQ0 -- 32, IRQ1 -- 33 ...
+    out_byte(INT_S_CTLMASK, INT_VECTOR_IRQ8);        // IRQ0 -- 32, IRQ1 -- 33 ...
 
     // 3. 向端口 0x21 （主片）和 0xa1 （从片）写入 ICW3
-    out_byte(INT_M_CTLMASK, 32);        // 00000100
-    out_byte(INT_S_CTLMASK, 40);        // 00000010 - IRQ2
+    out_byte(INT_M_CTLMASK, 4);        // 00000100
+    out_byte(INT_S_CTLMASK, 2);        // 00000010 - IRQ2
 
     // 4. 向端口 0x21 （主片）和 0xa1 （从片）写入 ICW4
     // 00000001
-    out_byte(INT_M_CTLMASK, 32);
-    out_byte(INT_S_CTLMASK, 40);
+    out_byte(INT_M_CTLMASK, 1);
+    out_byte(INT_S_CTLMASK, 1);
 
     // 屏蔽所有中断请求
     out_byte(INT_M_CTLMASK, 0XFF);
@@ -59,7 +59,7 @@ PUBLIC void init_interrupt(void) {
         irq_handler_table[i] = default_irq_handler;
     }
 
-    interrupt_unlock();
+    // interrupt_unlock();
 }
 
 
@@ -79,12 +79,14 @@ PUBLIC void put_irq_handler(int irq, irq_handler_t handler) {
     assert(irq_handler_table[irq] == default_irq_handler);
 
     // 关中断
-    interrupt_lock();
+    // interrupt_lock();
+
+    dsable_irq(irq);
 
     irq_handler_table[irq] = handler;
 
     // 开中断
-    interrupt_unlock();
+    // interrupt_unlock();
 }
 
 /*************************************************************************

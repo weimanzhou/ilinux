@@ -92,7 +92,7 @@ typedef struct process_s {
 #define END_PROC_ADDR       (&proc_table[NR_TASKS + NR_SERVERS + NR_PROCS])
 #define END_TASK_ADDR       (&proc_table[NR_TASKS])
 #define BEG_SERVER_ADDR     (&proc_table[NR_TASKS + NR_SERVERS])
-#define BEG_USER_PROC_ADDR  (&proc_table[NR_TASKS + NR_SERVERS +LOW_USER])
+#define BEG_USER_PROC_ADDR  (&proc_table[NR_TASKS + NR_SERVERS + LOW_USER])
 
 /* 下面的这些宏能帮助我们快速做一些进程判断等简单的工作 */
 #define NIL_PROC			((process_t *) 0)							 /* 空进程指针 */

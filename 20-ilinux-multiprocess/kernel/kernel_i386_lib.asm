@@ -17,13 +17,45 @@ global interrupt_lock
 global interrupt_unlock
 global enable_irq
 global dsable_irq
+global phys_copy
 
 global test_int_0
+
+
+PC_ARGS     equ     16    ; 用于到达复制的参数堆栈的栈顶
+
+
+align 16
+phys_copy:
+    push esi
+    push edi
+    push es
+
+    ; 获得所有参数
+    mov esi, [esp + PC_ARGS]            ; src
+    mov edi, [esp + PC_ARGS + 4]        ; dest
+    mov ecx, [esp + PC_ARGS + 4 + 4]    ; size
+    ; 注：因为得到的就是物理地址，所以esi和edi无需再转换，直接就表示一个真实的位置。
+phys_copy_start:
+    cmp ecx, 0              ; 判断size
+    jz phys_copy_end        ; if( size == 0 ); jmp phys_copy_end
+    mov al, [esi]
+    inc esi
+    mov byte [edi], al
+    inc edi
+    dec ecx                 ; size--
+    jmp phys_copy_start
+phys_copy_end:
+    pop es
+    pop edi
+    pop esi
+    ret
 
 ; =====================================================================
 ; 保护模式下：打印字符串
 ; arg: 字符串的地址
 ; ---------------------------------------------------------------------
+align 16
 low_print:
 	push esi
 	push edi
@@ -43,7 +75,7 @@ low_print:
 
 	; call FUN_SET_CURSOR_POSITION		; @TODO
 
-	xchg bx, bx
+	; xchg bx, bx
 
 	cmp al, 10
 	je .print_nl						; 打印换行符
@@ -369,18 +401,21 @@ disable_master:
 
 disable_slave:
 	in al, INT_S_CTLMASK
+	test al, ah
+	jnz disable_already
 	or al, ah
 	out INT_S_CTLMASK, al
-	jmp disable_ok
 
 disable_ok:
 	pop ecx
 	popf										; 恢复标志寄存器
+	and eax, 1
 	ret
 
 disable_already:
 	pop ecx
 	popf 
+	xor eax, eax
 	ret 
 
 ; =====================================================================

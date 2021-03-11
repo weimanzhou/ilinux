@@ -25,11 +25,8 @@ EXTERN int display_position;                        /* low_print函数需要它�
 
 /* 硬件中断请求处理例程表 */
 EXTERN irq_handler_t irq_handler_table[NR_IRQ_VECTORS];
-EXTERN struct process_s *held_head; /* 中断挂起队列头指针 */
-EXTERN struct process_s *held_tail; /* 中断挂起队列尾指针 */
 
 /* 内核内存 */
-EXTERN phys_bytes data_base;		/* 内核数据段基地址 */
 EXTERN memory_map_t kernel_map;     /* 内核内存映像 */
 
 /* 多进程相关 */
@@ -40,7 +37,5 @@ extern char *sys_proc_stack[];      /* 系统进程堆栈 */
 /* 其他 */
 EXTERN boot_params_t* boot_params;  /* 引导参数 */
 EXTERN u8_t kernel_reenter;         /* 记录内核中断重入次数 */
-EXTERN ILINUX_syscall_t level0_func;/* 提权成功的函数指针放在这里 */
-
 
 #endif // ILINUX_GLOBAL_H

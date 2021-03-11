@@ -12,7 +12,8 @@
 typedef _PROTOTYPE( void task_t, (void) );
 typedef _PROTOTYPE( void (*WatchDog), (void) );
 
-/* 系统进程表项定义
+/* 
+ * 系统进程表项定义
  *
  * 一个表项可以存放一个系统级别的进程，在这里我们和用户进程表项分开定义了
  * 因为它们特权级不同，待遇也不同，就这个理解就应该让我们区别对待。
