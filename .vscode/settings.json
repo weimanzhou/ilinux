@@ -8,6 +8,7 @@
         "string.h": "c",
         "lib.h": "c",
         "stdarg.h": "c",
-        "caller.h": "c"
+        "caller.h": "c",
+        "assert.h": "c"
     }
 }

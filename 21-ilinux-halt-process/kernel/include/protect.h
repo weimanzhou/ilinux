@@ -1,4 +1,4 @@
-/*************************************************************************
+    /*************************************************************************
 	> File Name: t.h
 	> Author: snowflake
 	> Mail: 278121951@qq.com 
@@ -11,10 +11,6 @@
  ************************************************************************/
 #ifndef ILINUX_PROTECT_H
 #define ILINUX_PROTECT_H
-
-#include "kernel.h"
-#include "type.h"
-#include "types.h"
 
 /*================================================================================================*/
 /* 描述符表项结构 */
@@ -79,7 +75,7 @@ typedef struct tss_s
 /* 表大小 */
 /*================================================================================================*/
 #define GDT_SIZE (LDT_FIRST_INDEX + NR_TASKS + NR_PROCS) /* 全局描述符表 */
-#define IDT_SIZE (INT_VECTOR_SYS_CALL + 1)  /* 只取最高的向量 */
+#define IDT_SIZE (INT_VECTOR_IRQ8 + 8 + 1)  /* 只取最高的向量 */
 #define LDT_SIZE         2	                /* ILINUX0.11 每个进程只有两个段，一个是正文段（代码段），
                                              * 另一个是数据段，而堆栈段则和数据段共用，以后可能会分的更
                                              * 细，但对于现在来说，这样就够了。
@@ -171,9 +167,9 @@ typedef struct tss_s
 #define	DA_CCOR			    0x9E	/* 存在的可执行可读一致代码段属性值	*/
 
 /* 系统段描述符类型值说明 */
-#define	DA_LDT			        0x82	/* 局部描述符表段类型值			*/
+#define	DA_LDT			    0x82	/* 局部描述符表段类型值			*/
 #define	DA_TASK_GATE		    0x85	/* 任务门类型值				*/
-#define	DA_386TSS		        0x89	/* 可用 386 任务状态段类型值		*/
+#define	DA_386TSS		    0x89	/* 可用 386 任务状态段类型值		*/
 #define	DA_386C_GATE		    0x8C	/* 386 调用门类型值			*/
 #define	DA_386I_GATE		    0x8E	/* 386 中断门类型值			*/
 #define	DA_386T_GATE		    0x8F	/* 386 陷阱门类型值			*/
