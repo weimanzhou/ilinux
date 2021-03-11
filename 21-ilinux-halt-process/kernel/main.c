@@ -29,13 +29,10 @@ void ilinux_main(void)
 
 	init_mul_process_by_me();
 
-    k_printf("1");
-
 	curr_proc = proc_addr(-1);
-	
+
 	restart();
     
-    k_printf("2");
 	while(1) {}
 }
 

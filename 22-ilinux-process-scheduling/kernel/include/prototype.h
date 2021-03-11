@@ -93,13 +93,13 @@ _PROTOTYPE( void clock_task, (void) );
 /*************************************************************************
 	> process.c
 **************************************************************************/
-// _PROTOTYPE( void lock_schedule, (void) );
-// _PROTOTYPE( void lock_unready, (struct process_s *proc) );
-// _PROTOTYPE( void lock_ready, (struct process_s *proc) );
-// _PROTOTYPE( void lock_hunter, (void) );
-// _PROTOTYPE( void schedule_stop, (void ) );
-// _PROTOTYPE( void ready, (struct process_s *proc) );
-// _PROTOTYPE( void unready, (struct process_s *proc) );
+_PROTOTYPE( void lock_schedule, (void) );
+_PROTOTYPE( void lock_unready, (struct process_s *proc) );
+_PROTOTYPE( void lock_ready, (struct process_s *proc) );
+_PROTOTYPE( void lock_hunter, (void) );
+_PROTOTYPE( void schedule_stop, (void ) );
+_PROTOTYPE( void ready, (struct process_s *proc) );
+_PROTOTYPE( void unready, (struct process_s *proc) );
 // _PROTOTYPE( void interrupt, (int task) );
 // _PROTOTYPE( void unhold, (void) );
 

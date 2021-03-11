@@ -44,7 +44,7 @@ ILINUX_KERNEL 	= $(tk)/kernel.bin
 
 KERNEL_OBJS 	= $(tk)/kernel.o $(tk)/kernel_i386_lib.o $(tk)/main.o  \
 				  $(tk)/protect.o $(tk)/table.o $(tk)/init.o $(tk)/exception.o \
-				  $(tk)/mics.o $(tk)/i8259.o $(tk)/clock.o
+				  $(tk)/mics.o $(tk)/i8259.o $(tk)/clock.o $(tk)/process.o
 
 STDIO_OBJS      = $(tl)/vsprintf.o
 I386_OBJS       = $(tl)/i386/ipc/ipc_msg.o
@@ -139,6 +139,8 @@ $(tk)/i8259.o: kernel/i8259.c
 	$(CC) $(CC_PARA) -o $@ $<
 $(tk)/clock.o: kernel/clock.c 
 	$(CC) $(CC_PARA) -o $@ $<
+$(tk)/process.o: kernel/process.c 
+	$(CC) $(CC_PARA) -o $@ $<
 
 $(tl)/ansi/string.o: $(lansi)/string.asm
 	$(ASM) $(ASM_PARA) -o $@ $<
@@ -147,6 +149,9 @@ $(tl)/ansi/memcmp.o: $(lansi)/memcmp.c
 	$(CC) $(CC_PARA) -o $@ $<
 
 $(tl)/ansi/stringc.o: $(lansi)/stringc.c
+	$(CC) $(CC_PARA) -o $@ $<
+
+$(tl)/vsprintf.o: $(lstdio)/vsprintf.c
 	$(CC) $(CC_PARA) -o $@ $<
 
 # $(OBJS): %.o : %.c

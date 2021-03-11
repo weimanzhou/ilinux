@@ -39,4 +39,5 @@ EXTERN boot_params_t* boot_params;  /* 引导参数 */
 EXTERN u8_t kernel_reenter;         /* 记录内核中断重入次数 */
 EXTERN ILINUX_syscall_t level0_func; // 提权成功的函数指针
 
+
 #endif // ILINUX_GLOBAL_H

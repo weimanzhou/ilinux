@@ -36,7 +36,7 @@
 //                                                      * 设置 SMALL_STACK 也没问题啦~ */
 
 /* 虚拟硬件栈 */
-// #define HARDWARE_STACK      0
+#define HARDWARE_STACK      0
 
 /* 所有系统进程的栈空间总大小 */
 #define TOTAL_SYS_PROC_STACK    (  SMALL_STACK )
@@ -52,7 +52,7 @@ PUBLIC sys_proc_t sys_proc_table[] = {
         // /* 待机任务 */
         { idle_task, SMALL_STACK, "IDLE" },
         // /* 虚拟硬件任务，只是占个位置 - 用作判断硬件中断 */
-        // { 0, HARDWARE_STACK, "HARDWARE" },
+        { 0, HARDWARE_STACK, "HARDWARE" },
         // { test_task_a, SMALL_STACK, "TEST_A" },
 		// { test_task_b, SMALL_STACK, "TEST_B" },
 		// { test_task_c, SMALL_STACK, "TEST_C" },

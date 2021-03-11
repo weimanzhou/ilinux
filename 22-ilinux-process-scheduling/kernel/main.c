@@ -21,21 +21,19 @@ FORWARD _PROTOTYPE (void init_mul_process_by_me, (void) );
 
 void ilinux_main(void) 
 {
+    // 1. 设置光标位置
 	display_position = (80 * 12 + 0) * 2;
-
+    // 2. 输出提示信息
 	k_printf("#ilinux_main: Hello C!!!\n");
-
+    // 3. 启动时钟
 	clock_task();
-
+    // 4. 初始化多任务
 	init_mul_process_by_me();
-
-    k_printf("1");
-
-	curr_proc = proc_addr(-1);
-	
+    // 5. 调用狩猎方法，选取一个进程执行
+    lock_hunter();
+    // 6. 执行线程
 	restart();
     
-    k_printf("2");
 	while(1) {}
 }
 
@@ -107,6 +105,9 @@ PRIVATE void init_mul_process_by_me() {
 
         /* 进程刚刚初始化，让它处于可运行状态，所以标志位上没有1 */
         proc->flags = CLEAN_MAP;
+
+        if (!is_idle_hardware(logic_nr))
+            ready(proc);
     }
 
 }
@@ -119,47 +120,4 @@ PUBLIC void idle_task(void)
     {
         level0(halt);
     }
-}
-
-PUBLIC void test_task_a(void) {
-	int i, j, k;
-	k = 0;
-	while (TRUE)
-	{
-		for (i = 0; i < 100; i++) {
-			for (j = 0; j < 1000000; j++) {
-
-			}
-		}
-		k_printf("#{A} -> %d", k++);
-	}
-	
-}
-
-PUBLIC void test_task_b(void) {
-	int i, j, k;
-	k = 0;
-	while (TRUE)
-	{
-		for (i = 0; i < 100; i++) {
-			for (j = 0; j < 1000000; j++) {
-
-			}
-		}
-		k_printf("#{B} -> %d", k++);
-	}
-}
-
-PUBLIC void test_task_c(void) {
-	int i, j, k;
-	k = 0;
-	while (TRUE)
-	{
-		for (i = 0; i < 100; i++) {
-			for (j = 0; j < 1000000; j++) {
-
-			}
-		}
-		k_printf("#{C} -> %d", k++);
-	}
 }

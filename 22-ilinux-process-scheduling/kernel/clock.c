@@ -41,18 +41,7 @@ PRIVATE int clock_handler(int irq) {
     count++;
     if(count % 100 == 0){
         k_printf(">");
-        /* 超出我们的系统进程，拉回来 */
-        curr_proc++;
-        // if (curr_proc->logic_nr == -1)
-        //     curr_proc = proc_addr(-2);
-        // else {
-        //     curr_proc = proc_addr(-1);
-        // }
-        if(curr_proc > proc_addr(LOW_USER)) {
-            curr_proc = proc_addr(-NR_TASKS);
-        }
     }
-
 
     // count++;
     // if (count % 100 == 0) k_printf(">");

@@ -9,6 +9,7 @@
         "lib.h": "c",
         "stdarg.h": "c",
         "caller.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "common.h": "c"
     }
 }

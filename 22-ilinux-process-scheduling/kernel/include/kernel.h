@@ -25,6 +25,7 @@
 #include <ilinux/config.h>      /* 这个头文件必须第一个引入 */
 #include <ansi.h>               /* 必须第二个 */
 #include <sys/types.h>
+#include <ilinux/common.h>
 #include <ilinux/const.h>
 #include <ilinux/type.h>
 #include <ilinux/syslib.h>
@@ -35,6 +36,5 @@
 
 #include "const.h"
 #include "type.h"
-#include "prototype.h"
 #include "global.h"
-
+#include "prototype.h"
