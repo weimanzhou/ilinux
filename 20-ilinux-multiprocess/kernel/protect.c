@@ -30,7 +30,6 @@ struct gate_desc_s {
 } gate_desc_s;
 
 
-
 /* 本地函数 */
 FORWARD _PROTOTYPE( void init_gate, (u8_t vector, u8_t desc_type, int_handler_t  handler, u8_t privilege) );
 FORWARD _PROTOTYPE( void test_soft_int, (void) );
@@ -74,8 +73,6 @@ struct gate_desc_s int_gate_table[] = {
         { INT_VECTOR_IRQ8 + 7,		hwint15,				KERNEL_PRIVILEGE },
         /* ************************** 软件异常 **************************** */
         { 48,                       test_soft_int,          KERNEL_PRIVILEGE }
-        // { INT_VECTOR_LEVEL0,		level0_sys_call,		TASK_PRIVILEGE   },		/* 提供给系统任务的系统调用：提权 */
-        //{ INT_VECTOR_SYS_CALL,		ilinux_386_sys_call,	USER_PRIVILEGE   },		/* 提供给系统任务的系统调用：提权 */
 };
 
 PRIVATE void test_soft_int(void) {
@@ -88,15 +85,14 @@ PRIVATE void test_soft_int(void) {
  ************************************************************************/
 PUBLIC void init_protect(void) {
 
-
     /*
      * 将 LOADER 中的 GDT 拷贝到内核中新的 GDT 中
      * 
      * & 取值，其实是取道相当于 ds 的偏移，所以需要使用 vir2phys 转换一下
      */
     memcpy(
-        vir2phys(&gdt),                             // dest
-        *((u32_t *) vir2phys(&gdt_ptr[2])),         // src
+        (void*) vir2phys(&gdt),                             // dest
+        (void*) *((u32_t *) vir2phys(&gdt_ptr[2])),         // src
         *((u16_t *) vir2phys(&gdt_ptr[0])) + 1      // size
     );
 
@@ -145,152 +141,7 @@ PUBLIC void init_protect(void) {
         );
         process->ldt_sel = ldt_index * DESCRIPTOR_SIZE;
     }
-
-
-    // init_segment_desc(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss) - 1, DA_386TSS);
-    // tss.iobase = sizeof(tss);           /* 空 I/O 位图 */
-
-
-    // /* 首先，将 LOADER 中的 GDT 拷贝到内核中新的 GDT 中  */
-    // phys_copy(*((u32_t *)vir2phys(&gdt_ptr[2])),           // src:LOADER中旧的GDT基地址
-    //         vir2phys(&gdt),                                // dest:新的GDT基地址
-    //         *((u16_t*)vir2phys(&gdt_ptr[0])) + 1           // size:旧GDT的段界限 + 1
-    //         );
-    // /* 算出新 GDT 的基地址和界限，设置新的 gdt_ptr */
-    // u16_t* p_gdt_limit = (u16_t*)vir2phys(&gdt_ptr[0]);
-    // u32_t* p_gdt_base = (u32_t*)vir2phys(&gdt_ptr[2]);
-    // *p_gdt_limit = GDT_SIZE * DESCRIPTOR_SIZE - 1;
-    // *p_gdt_base = vir2phys(&gdt);
-    // /* 算出IDT的基地址和界限，设置新的 idt_ptr */
-    // u16_t* p_idt_limit = (u16_t*)vir2phys(&idt_ptr[0]);
-    // u32_t* p_idt_base = (u32_t*)vir2phys(&idt_ptr[2]);
-    // *p_idt_limit = IDT_SIZE * sizeof(gate_t) - 1;
-    // *p_idt_base = vir2phys(&idt);
-
-    // /* 初始化所有中断门描述符到 IDT中 */
-    // struct gate_desc_s* p_gate = &int_gate_table[0];
-    // for(; p_gate < &int_gate_table[sizeof(int_gate_table) / sizeof(struct gate_desc_s)]; p_gate++){
-    //     init_gate(p_gate->vector, DA_386IGate, p_gate->handler, p_gate->privilege);
-    // }
-
-    // /*
-	//  * 初始化任务状态段TSS，并为处理器寄存器和其他任务切换时应保存的信息提供空间。
-    //  * 我们只使用了某些域的信息，这些域定义了当发生中断时在何处建立新堆栈。
-    //  * 下面init_seg_desc的调用保证它可以用GDT进行定位。
-    //  */
-    // memset(&tss, 0, sizeof(tss));
-    // tss.ss0 = SELECTOR_KERNEL_DS;
-    // init_segment_desc(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss) - 1, DA_386TSS);
-    // tss.iobase = sizeof(tss);           /* 空 I/O 位图 */
-
-    // /* 为每个进程分配唯一的 LDT */
-    // Process_t *proc = BEG_PROC_ADDR;
-    // int ldt_idx = LDT_FIRST_INDEX;
-    // for(; proc < END_PROC_ADDR; proc++, ldt_idx++) {
-    //     memset(proc, 0, sizeof(Process_t)); /* clean */
-    //     init_segment_desc(&gdt[ldt_idx], vir2phys(proc->ldt), sizeof(proc->ldt) - 1, DA_LDT);
-    //     proc->ldt_sel = ldt_idx * DESCRIPTOR_SIZE;
-    // }
-
 }
-
-PUBLIC void init_protect2(void){
-
-    // /* 首先，将 LOADER 中的 GDT 拷贝到内核中新的 GDT 中  */
-    // phys_copy(*((u32_t *)vir2phys(&gdt_ptr[2])),            // src:LOADER中旧的GDT基地址
-    //         vir2phys(&gdt),                                // dest:新的GDT基地址
-    //         *((u16_t*)vir2phys(&gdt_ptr[0])) + 1           // size:旧GDT的段界限 + 1
-    //         );
-
-    memcpy(
-        vir2phys(&gdt),                             // dest
-        *((u32_t *) vir2phys(&gdt_ptr[2])),         // src
-        *((u16_t *) vir2phys(&gdt_ptr[0])) + 1      // size
-    );
-
-
-    /* 算出新 GDT 的基地址和界限，设置新的 gdt_ptr */
-    u16_t* p_gdt_limit = (u16_t*)vir2phys(&gdt_ptr[0]);
-    u32_t* p_gdt_base = (u32_t*)vir2phys(&gdt_ptr[2]);
-    *p_gdt_limit = GDT_SIZE * DESCRIPTOR_SIZE - 1;
-    *p_gdt_base = vir2phys(&gdt);
-    /* 算出IDT的基地址和界限，设置新的 idt_ptr */
-    u16_t* p_idt_limit = (u16_t*)vir2phys(&idt_ptr[0]);
-    u32_t* p_idt_base = (u32_t*)vir2phys(&idt_ptr[2]);
-    *p_idt_limit = IDT_SIZE * sizeof(gate_t) - 1;
-    *p_idt_base = vir2phys(&idt);
-
-    /* 初始化所有中断门描述符到 IDT中 */
-    struct gate_desc_s* p_gate = &int_gate_table[0];
-    for(; p_gate < &int_gate_table[sizeof(int_gate_table) / sizeof(struct gate_desc_s)]; p_gate++){
-        init_gate(p_gate->vector, DA_386I_GATE, p_gate->handler, p_gate->privilege);
-    }
-
-    /* 初始化任务状态段TSS，并为处理器寄存器和其他任务切换时应保存的信息提供空间。
-     * 我们只使用了某些域的信息，这些域定义了当发生中断时在何处建立新堆栈。
-     * 下面init_seg_desc的调用保证它可以用GDT进行定位。
-     */
-    memset(&tss, 0, sizeof(tss));
-    tss.ss0 = SELECTOR_KERNEL_DS;
-    init_segment_desc(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss) - 1, DA_386TSS);
-    tss.iobase = sizeof(tss);           /* 空 I/O 位图 */
-
-    /* 为每个进程分配唯一的 LDT */
-    process_t *proc = BEG_PROC_ADDR;
-    int ldt_idx = LDT_FIRST_INDEX;
-    for(; proc < END_PROC_ADDR; proc++, ldt_idx++) {
-        memset(proc, 0, sizeof(process_t)); /* clean */
-        init_segment_desc(&gdt[ldt_idx], vir2phys(proc->ldt), sizeof(proc->ldt) - 1, DA_LDT);
-        proc->ldt_sel = ldt_idx * DESCRIPTOR_SIZE;
-    }
-
-}
-
-
-// PUBLIC void init_protect(void){
-
-//     /* 首先，将 LOADER 中的 GDT 拷贝到内核中新的 GDT 中  */
-//     phys_copy(*((u32_t *)vir2phys(&gdt_ptr[2])),            // src:LOADER中旧的GDT基地址
-//             vir2phys(&gdt),                                // dest:新的GDT基地址
-//             *((u16_t*)vir2phys(&gdt_ptr[0])) + 1           // size:旧GDT的段界限 + 1
-//             );
-//     /* 算出新 GDT 的基地址和界限，设置新的 gdt_ptr */
-//     u16_t* p_gdt_limit = (u16_t*)vir2phys(&gdt_ptr[0]);
-//     u32_t* p_gdt_base = (u32_t*)vir2phys(&gdt_ptr[2]);
-//     *p_gdt_limit = GDT_SIZE * DESCRIPTOR_SIZE - 1;
-//     *p_gdt_base = vir2phys(&gdt);
-//     /* 算出IDT的基地址和界限，设置新的 idt_ptr */
-//     u16_t* p_idt_limit = (u16_t*)vir2phys(&idt_ptr[0]);
-//     u32_t* p_idt_base = (u32_t*)vir2phys(&idt_ptr[2]);
-//     *p_idt_limit = IDT_SIZE * sizeof(gate_t) - 1;
-//     *p_idt_base = vir2phys(&idt);
-
-//     /* 初始化所有中断门描述符到 IDT中 */
-//     struct gate_desc_s* p_gate = &int_gate_table[0];
-//     for(; p_gate < &int_gate_table[sizeof(int_gate_table) / sizeof(struct gate_desc_s)]; p_gate++){
-//         init_gate(p_gate->vector, DA_386I_GATE, p_gate->handler, p_gate->privilege);
-//     }
-
-//     /* 初始化任务状态段TSS，并为处理器寄存器和其他任务切换时应保存的信息提供空间。
-//      * 我们只使用了某些域的信息，这些域定义了当发生中断时在何处建立新堆栈。
-//      * 下面init_seg_desc的调用保证它可以用GDT进行定位。
-//      */
-//     memset(&tss, 0, sizeof(tss));
-//     tss.ss0 = SELECTOR_KERNEL_DS;
-//     init_segment_desc(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss) - 1, DA_386TSS);
-//     tss.iobase = sizeof(tss);           /* 空 I/O 位图 */
-
-//     /* 为每个进程分配唯一的 LDT */
-//     process_t *proc = BEG_PROC_ADDR;
-//     int ldt_idx = LDT_FIRST_INDEX;
-//     for(; proc < END_PROC_ADDR; proc++, ldt_idx++) {
-//         memset(proc, 0, sizeof(process_t)); /* clean */
-//         init_segment_desc(&gdt[ldt_idx], vir2phys(proc->ldt), sizeof(proc->ldt) - 1, DA_LDT);
-//         proc->ldt_sel = ldt_idx * DESCRIPTOR_SIZE;
-//     }
-
-// }
-
 
 /*=========================================================================*
  *				init_segment_desc				   *

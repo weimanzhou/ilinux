@@ -522,9 +522,9 @@ save:
     mov dx, ss
     mov ds, dx
     mov es, dx
-    mov esi, esp    ; esi 指向进程的栈帧开始处
+    mov esi, esp    			; esi 指向进程的栈帧开始处
 
-    inc byte [kernel_reenter]  ; 发生了一次中断，中断重入计数++
+    inc byte [kernel_reenter]  	; 发生了一次中断，中断重入计数++
     ; 现在判断是不是嵌套中断，是的话就无需切换堆栈到内核栈了
     jnz .reenter                ; 嵌套中断
     ; 从一个进程进入的中断，需要切换到内核栈
